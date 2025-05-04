@@ -6,97 +6,306 @@
     <title>Tabungan Saya</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Perbaikan 1: Import Firebase yang benar menggunakan modular API -->
+    <script type="module">
+        // Import fungsi yang dibutuhkan dari Firebase SDK
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+        // Kode Firebase akan dipindahkan ke sini
+        window.onload = function() {
+            // Konfigurasi Firebase Anda
+            const firebaseConfig = {
+  apiKey: "AIzaSyBpdprkZ-7Mog3QNh4Z6odj5yglXcgb-iw",
+  authDomain: "reksaya.firebaseapp.com",
+  projectId: "reksaya",
+  storageBucket: "reksaya.firebasestorage.app",
+  messagingSenderId: "879053060563",
+  appId: "1:879053060563:web:bcafb855e2024e561d1726"
+};
+
+            // Inisialisasi Firebase
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+
+            // Membuat variabel global agar bisa diakses dari fungsi lain
+            window.auth = auth;
+            window.db = db;
+            window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+            window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+            window.signOut = signOut;
+            window.onAuthStateChanged = onAuthStateChanged;
+            window.getDoc = getDoc;
+            window.setDoc = setDoc;
+            window.doc = doc;
+            window.deleteDoc = deleteDoc;
+            
+            // Panggil inisialisasi aplikasi
+            initApp();
+        };
+    </script>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <style>
-      /* Tambahkan gaya kustom untuk memastikan grafik responsif */
-      #grafikSaldo {
-        width: 100%;
-        height: auto;
-        max-height: 300px; /* Batasi tinggi maksimum jika perlu */
-      }
+        /* Gaya kustom untuk memastikan grafik responsif */
+        #grafikSaldo {
+            width: 100%;
+            height: auto;
+            max-height: 300px;
+        }
+        .hidden {
+            display: none;
+        }
+        .visible {
+            display: block;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen p-4">
-    <div class="mx-auto bg-white rounded-2xl shadow-lg p-6 space-y-6 max-w-md sm:max-w-2xl md:max-w-3xl lg:max-w-4xl">
+    <div class="mx-auto bg-white rounded-2xl shadow-lg p-6 space-y-8 max-w-md sm:max-w-2xl md:max-w-3xl lg:max-w-4xl">
         <h1 class="text-2xl font-bold text-indigo-700">📘 Aplikasi Tabungan Saya</h1>
 
-        <div class="space-y-2">
-            <input type="text" id="nama" placeholder="Nama" class="border px-4 py-2 rounded-lg w-full" />
-            <input type="number" id="saldoAwal" placeholder="Saldo Awal" class="border px-4 py-2 rounded-lg w-full" />
-            <button onclick="simpanDataAwal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 w-full">
-                Simpan Data Awal
-            </button>
-        </div>
-
-        <div>
-            <h2 class="text-lg font-semibold mb-2">➕ Tambah Mutasi</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                <input type="date" id="tanggal" class="border px-2 py-1 rounded w-full" />
-                <input type="text" id="keterangan" placeholder="Keterangan" class="border px-2 py-1 rounded w-full" />
-                <input type="number" id="jumlah" placeholder="Jumlah" class="border px-2 py-1 rounded w-full" />
-                <select id="tipe" class="border px-2 py-1 rounded w-full">
-                    <option value="masuk">Masuk</option>
-                    <option value="keluar">Keluar</option>
-                </select>
-            </div>
-            <button onclick="tambahMutasi()" class="mt-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full sm:w-auto">
-                Tambah
-            </button>
-        </div>
-
-        <div class="bg-gray-50 p-4 rounded-lg shadow">
-            <h3 class="font-semibold mb-2">📅 Filter Tanggal</h3>
-            <div class="flex flex-col sm:flex-row gap-2">
-                <input type="date" id="filterTanggal" class="border px-2 py-1 rounded w-full sm:w-auto" />
-                <button onclick="filterByTanggal()" class="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600 w-full sm:w-auto">
-                    Filter
+        <div id="auth-section">
+            <h2 class="text-lg font-semibold mb-4">🔒 Login / Daftar</h2>
+            <div id="login-form" class="space-y-3">
+                <input type="email" id="email" placeholder="Email" class="border px-4 py-2 rounded-lg w-full" />
+                <input type="password" id="password" placeholder="Password" class="border px-4 py-2 rounded-lg w-full" />
+                <button id="login-button" onclick="login()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full">
+                    Masuk
                 </button>
-                <button onclick="tampilkan()" class="bg-gray-300 text-gray-700 px-4 py-1 rounded hover:bg-gray-400 w-full sm:w-auto">
-                    Tampilkan Semua
+                <button id="register-button" onclick="daftar()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full">
+                    Daftar
+                </button>
+                <div id="error-message" class="text-red-500 text-sm"></div>
+            </div>
+            <div id="user-info" class="hidden space-y-2">
+                <p>Selamat datang, <span id="nama-pengguna" class="font-semibold"></span>!</p>
+                <button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 w-full">
+                    Logout
                 </button>
             </div>
         </div>
 
-        <div>
-            <h3 class="text-lg font-semibold text-indigo-600 mb-2">📊 Grafik Perkembangan Saldo</h3>
-            <canvas id="grafikSaldo"></canvas>
-        </div>
-
-        <div class="overflow-x-auto">
-            <table class="min-w-full text-sm text-left border border-gray-200 rounded-lg">
-                <thead class="bg-indigo-100 text-indigo-800 font-semibold">
-                    <tr>
-                        <th class="px-4 py-2 border">Tanggal</th>
-                        <th class="px-4 py-2 border">Keterangan</th>
-                        <th class="px-4 py-2 border">Jumlah</th>
-                        <th class="px-4 py-2 border">Tipe</th>
-                    </tr>
-                </thead>
-                <tbody id="tabelMutasi" class="bg-white"></tbody>
-            </table>
-        </div>
-
-        <div class="flex flex-col sm:flex-row justify-between items-center gap-y-2 sm:gap-0">
-            <div class="font-bold text-xl text-green-700">
-                💰 Saldo Akhir: <span id="saldoAkhir">Rp 0</span>
+        <div id="data-awal-section" class="space-y-6 hidden">
+            <h2 class="text-lg font-semibold">⚙️ Input Data Awal</h2>
+            <div class="space-y-2">
+                <input type="text" id="nama" placeholder="Nama" class="border px-4 py-2 rounded-lg w-full" />
+                <input type="number" id="saldoAwal" placeholder="Saldo Awal" class="border px-4 py-2 rounded-lg w-full" />
+                <button onclick="simpanDataAwal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 w-full">
+                    Simpan Data Awal
+                </button>
             </div>
-            <button onclick="resetData()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 w-full sm:w-auto">
-                🔄 Reset Semua Data
-            </button>
+
+            <div>
+                <h2 class="text-lg font-semibold mb-2">➕ Tambah Mutasi</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                    <input type="date" id="tanggal" class="border px-2 py-1 rounded w-full" />
+                    <input type="text" id="keterangan" placeholder="Keterangan" class="border px-2 py-1 rounded w-full" />
+                    <input type="number" id="jumlah" placeholder="Jumlah" class="border px-2 py-1 rounded w-full" />
+                    <select id="tipe" class="border px-2 py-1 rounded w-full">
+                        <option value="masuk">Masuk</option>
+                        <option value="keluar">Keluar</option>
+                    </select>
+                </div>
+                <button onclick="tambahMutasi()" class="mt-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-auto sm:w-full">
+                    Tambah
+                </button>
+            </div>
+
+            <div class="bg-gray-50 p-4 rounded-lg shadow">
+                <h3 class="font-semibold mb-2">📅 Filter Tanggal</h3>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="date" id="filterTanggal" class="border px-2 py-1 rounded w-full sm:w-auto" />
+                    <button onclick="filterByTanggal()" class="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600 w-full sm:w-auto">
+                        Filter
+                    </button>
+                    <button onclick="tampilkan()" class="bg-gray-300 text-gray-700 px-4 py-1 rounded hover:bg-gray-400 w-full sm:w-auto">
+                        Tampilkan Semua
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-lg font-semibold text-indigo-600 mb-2">📊 Grafik Perkembangan Saldo</h3>
+                <canvas id="grafikSaldo"></canvas>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm text-left border border-gray-200 rounded-lg">
+                    <thead class="bg-indigo-100 text-indigo-800 font-semibold">
+                        <tr>
+                            <th class="px-4 py-2 border">Tanggal</th>
+                            <th class="px-4 py-2 border">Keterangan</th>
+                            <th class="px-4 py-2 border">Jumlah</th>
+                            <th class="px-4 py-2 border">Tipe</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelMutasi" class="bg-white"></tbody>
+                </table>
+            </div>
+
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-y-2 sm:gap-0">
+                <div class="font-bold text-xl text-green-700">
+                    💰 Saldo Akhir: <span id="saldoAkhir">Rp 0</span>
+                </div>
+                <button onclick="resetData()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 w-full sm:w-auto">
+                    🔄 Reset Semua Data
+                </button>
+                <button onclick="exportToExcel()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full sm:w-auto">
+                    Export ke Excel
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
-        let data = JSON.parse(localStorage.getItem("tabunganAya")) || {
+        let data = {
             nama: "",
             saldo_awal: 0,
             mutasi: []
         };
 
         let chart = null;
+        let currentUser = null; // Menyimpan informasi pengguna yang sedang login
 
+        // Fungsi inisialisasi aplikasi
+        function initApp() {
+            // Tambahkan listener untuk memantau perubahan status login
+            window.onAuthStateChanged(window.auth, (user) => {
+                if (user) {
+                    currentUser = user;
+                    updateUI(user);
+                } else {
+                    currentUser = null;
+                    updateUI(null);
+                }
+            });
+        }
+
+        // Fungsi untuk menampilkan/menyembunyikan bagian-bagian berdasarkan status login
+        function updateUI(user) {
+            const authSection = document.getElementById("auth-section");
+            const dataAwalSection = document.getElementById("data-awal-section");
+            const userInfoDiv = document.getElementById("user-info");
+            const loginForm = document.getElementById("login-form");
+
+            if (user) {
+                currentUser = user;
+                authSection.classList.remove("hidden");  // Perbaikan 2: Tampilkan auth section
+                userInfoDiv.classList.remove("hidden");
+                loginForm.classList.add("hidden");
+                dataAwalSection.classList.remove("hidden");
+                document.getElementById("nama-pengguna").textContent = user.email; // Atau user.displayName jika ada
+
+                // Ambil data dari Firestore
+                ambilData();
+            } else {
+                currentUser = null;
+                authSection.classList.remove("hidden");
+                dataAwalSection.classList.add("hidden");
+                userInfoDiv.classList.add("hidden");
+                loginForm.classList.remove("hidden");
+                document.getElementById("nama-pengguna").textContent = "";
+                tampilkanGrafik([], []);
+            }
+        }
+
+        // Fungsi untuk mendaftar
+        function daftar() {
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+            const errorMessageElement = document.getElementById("error-message");
+
+            if (!email || !password) {
+                errorMessageElement.textContent = "Email dan password harus diisi.";
+                return;
+            }
+            errorMessageElement.textContent = "";
+
+            window.createUserWithEmailAndPassword(window.auth, email, password)
+                .then((userCredential) => {
+                    // Daftar berhasil
+                    const user = userCredential.user;
+                    console.log("Daftar berhasil:", user);
+                    updateUI(user);
+                    // Reset form
+                    document.getElementById("email").value = "";
+                    document.getElementById("password").value = "";
+                })
+                .catch((error) => {
+                    // Terjadi kesalahan
+                    const errorCode = error.code;
+                    const errorMessage = error.message;
+                    console.error("Error saat daftar:", errorCode, errorMessage);
+                    document.getElementById("email").value = "";
+                    document.getElementById("password").value = "";
+                    errorMessageElement.textContent = errorMessage; // Menampilkan pesan error Firebase
+                });
+        }
+
+        // Fungsi untuk login
+        function login() {
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+            const errorMessageElement = document.getElementById("error-message");
+
+            if (!email || !password) {
+                errorMessageElement.textContent = "Email dan password harus diisi.";
+                return;
+            }
+            errorMessageElement.textContent = "";
+
+            window.signInWithEmailAndPassword(window.auth, email, password)
+                .then((userCredential) => {
+                    // Login berhasil
+                    const user = userCredential.user;
+                    console.log("Login berhasil:", user);
+                    updateUI(user);
+                    // Reset form
+                    document.getElementById("email").value = "";
+                    document.getElementById("password").value = "";
+                })
+                .catch((error) => {
+                    // Terjadi kesalahan
+                    const errorCode = error.code;
+                    const errorMessage = error.message;
+                    console.error("Error saat login:", errorCode, errorMessage);
+                    document.getElementById("email").value = "";
+                    document.getElementById("password").value = "";
+                    errorMessageElement.textContent = errorMessage; // Menampilkan pesan error Firebase
+                });
+        }
+
+        // Fungsi untuk logout
+        function logout() {
+            window.signOut(window.auth)
+                .then(() => {
+                    // Logout berhasil
+                    console.log("Logout berhasil");
+                    updateUI(null);
+                    data = {
+                        nama: "",
+                        saldo_awal: 0,
+                        mutasi: []
+                    };
+                })
+                .catch((error) => {
+                    // Terjadi kesalahan
+                    const errorCode = error.code;
+                    const errorMessage = error.message;
+                    console.error("Error saat logout:", errorCode, errorMessage);
+                });
+        }
+
+        // Fungsi-fungsi lainnya disesuaikan dengan Firebase API yang baru
         function simpanDataAwal() {
+            if (!currentUser) {
+                alert("Anda harus login untuk menyimpan data awal.");
+                return;
+            }
             const nama = document.getElementById("nama").value;
-            const saldo = parseInt(document.getElementById("saldoAwal").value);
+            const saldo = parseInt(document.getElementById("saldoAwal").value) || 0; // Perbaikan 3: Tambah default 0 jika NaN
             data.nama = nama;
             data.saldo_awal = saldo;
             simpan();
@@ -104,6 +313,10 @@
         }
 
         function tambahMutasi() {
+            if (!currentUser) {
+                alert("Anda harus login untuk menambah mutasi.");
+                return;
+            }
             const tanggal = document.getElementById("tanggal").value;
             const keterangan = document.getElementById("keterangan").value;
             const jumlah = parseInt(document.getElementById("jumlah").value);
@@ -117,18 +330,53 @@
             data.mutasi.push({ tanggal, keterangan, jumlah, tipe });
             simpan();
             tampilkan();
+            
+            // Perbaikan 4: Reset form setelah submit
+            document.getElementById("tanggal").value = "";
+            document.getElementById("keterangan").value = "";
+            document.getElementById("jumlah").value = "";
         }
 
         function simpan() {
-            localStorage.setItem("tabunganAya", JSON.stringify(data));
+            if (currentUser) {
+                const userRef = window.doc(window.db, "users", currentUser.uid);
+                window.setDoc(userRef, data)
+                    .then(() => {
+                        console.log("Data berhasil disimpan ke Firestore");
+                    })
+                    .catch(error => {
+                        console.error("Error menyimpan data ke Firestore:", error);
+                    });
+            }
+        }
+
+        function ambilData() {
+            if (currentUser) {
+                const userRef = window.doc(window.db, "users", currentUser.uid);
+                window.getDoc(userRef).then((doc) => {
+                    if (doc.exists()) {
+                        data = doc.data();
+                        tampilkan();
+                    } else {
+                        console.log("Tidak ada data untuk pengguna ini di Firestore");
+                        data = { nama: "", saldo_awal: 0, mutasi: [] };
+                        tampilkanGrafik([], []);
+                    }
+                }).catch(error => {
+                    console.error("Error mengambil data dari Firestore:", error);
+                });
+            }
         }
 
         function tampilkan() {
+            if (!currentUser) {
+                return;
+            }
             const tabel = document.getElementById("tabelMutasi");
             tabel.innerHTML = "";
             let saldo = data.saldo_awal;
-            const saldoHistory = [];
-            const tanggalLabels = [];
+            const saldoHistory = [saldo]; // Perbaikan 5: Tambahkan saldo awal ke history
+            const tanggalLabels = ["Awal"]; // Perbaikan 6: Tambahkan label untuk saldo awal
 
             // Sort mutasi berdasarkan tanggal
             const sortedMutasi = [...data.mutasi].sort((a, b) => a.tanggal.localeCompare(b.tanggal));
@@ -152,13 +400,24 @@
         }
 
         function filterByTanggal() {
+            if (!currentUser) {
+                alert("Anda harus login untuk memfilter data.");
+                return;
+            }
             const tanggalFilter = document.getElementById("filterTanggal").value;
+            if (!tanggalFilter) {
+                alert("Pilih tanggal terlebih dahulu"); // Perbaikan 7: Validasi tanggal filter
+                return;
+            }
+            
             const tabel = document.getElementById("tabelMutasi");
             tabel.innerHTML = "";
             let saldo = data.saldo_awal;
+            let found = false; // Perbaikan 8: Tambah flag untuk membantu deteksi data
 
             data.mutasi.forEach(m => {
                 if (m.tanggal === tanggalFilter) {
+                    found = true;
                     saldo += m.tipe === "masuk" ? m.jumlah : -m.jumlah;
                     tabel.innerHTML += `<tr class="border-t">
                         <td class="px-4 py-2 border">${m.tanggal}</td>
@@ -169,20 +428,39 @@
                 }
             });
 
+            if (!found) {
+                tabel.innerHTML = `<tr><td colspan="4" class="px-4 py-2 text-center">Tidak ada data untuk tanggal ${tanggalFilter}</td></tr>`;
+            }
+
             document.getElementById("saldoAkhir").innerText = "Rp " + saldo.toLocaleString();
         }
 
         function resetData() {
+            if (!currentUser) {
+                alert("Anda harus login untuk menghapus data.");
+                return;
+            }
             if (confirm("Yakin ingin menghapus semua data?")) {
-                localStorage.removeItem("tabunganAya");
-                data = { nama: "", saldo_awal: 0, mutasi: [] };
-                tampilkan();
+                const userRef = window.doc(window.db, "users", currentUser.uid);
+                window.deleteDoc(userRef).then(() => {
+                    console.log("Data berhasil dihapus dari Firestore");
+                    data = { nama: "", saldo_awal: 0, mutasi: [] };
+                    tampilkan();
+                }).catch(error => {
+                    console.error("Error menghapus data dari Firestore:", error);
+                });
             }
         }
 
         function tampilkanGrafik(labels, dataSaldo) {
             const ctx = document.getElementById("grafikSaldo").getContext("2d");
             if (chart) chart.destroy();
+            
+            // Perbaikan 9: Cek jika array kosong, jangan render chart
+            if (labels.length === 0 || dataSaldo.length === 0) {
+                return;
+            }
+            
             chart = new Chart(ctx, {
                 type: "line",
                 data: {
@@ -234,7 +512,7 @@
                                 font: {
                                     size: 10
                                 },
-                                callback: function(value) {
+                                callback: function (value) {
                                     return 'Rp ' + value.toLocaleString();
                                 }
                             }
@@ -259,7 +537,7 @@
                             size: 10
                         },
                         callbacks: {
-                            label: function(context) {
+                            label: function (context) {
                                 let label = context.dataset.label || '';
                                 if (label) {
                                     label += ': ';
@@ -275,7 +553,46 @@
             });
         }
 
-        tampilkan();
+        function exportToExcel() {
+            if (!currentUser) {
+                alert("Anda harus login untuk mengekspor data.");
+                return;
+            }
+            
+            // Perbaikan 10: Periksa jika tidak ada data untuk diekspor
+            if (data.mutasi.length === 0) {
+                alert("Tidak ada data untuk diekspor");
+                return;
+            }
+
+            // Buat array data untuk diekspor
+            const exportData = [
+                ["Tanggal", "Keterangan", "Jumlah", "Tipe", "Saldo Akhir"], // Header
+            ];
+            let saldo = data.saldo_awal;
+            const sortedMutasi = [...data.mutasi].sort((a, b) => a.tanggal.localeCompare(b.tanggal)); //urutkan dulu
+
+            sortedMutasi.forEach(item => {
+                saldo += item.tipe === "masuk" ? item.jumlah : -item.jumlah;
+                exportData.push([
+                    item.tanggal,
+                    item.keterangan,
+                    item.jumlah,
+                    item.tipe,
+                    saldo
+                ]);
+            });
+
+            // Buat worksheet
+            const ws = XLSX.utils.aoa_to_sheet(exportData);
+
+            // Buat workbook dan tambahkan worksheet
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Mutasi Tabungan");
+
+            // Generate file Excel
+            XLSX.writeFile(wb, "tabungan_mutasi.xlsx");
+        }
     </script>
 </body>
 </html>
